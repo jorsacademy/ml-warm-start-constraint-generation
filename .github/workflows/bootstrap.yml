@@ -35,7 +35,7 @@ jobs:
           echo "432b418a767c5f05da7d278c035c40c2128a702f00004e7a61fcc112c88902c8  /tmp/warmcg.tar.gz" | sha256sum --check --strict
           tar -xzf /tmp/warmcg.tar.gz -C .
           rm -rf .bootstrap
-          rm -f .github/workflows/bootstrap.yml
+          rm -f .github/workflows/ci.yml
 
       - name: Commit reconstructed repository
         shell: bash
