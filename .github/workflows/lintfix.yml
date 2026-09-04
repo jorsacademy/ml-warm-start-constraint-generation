@@ -1,4 +1,4 @@
-name: One-time lint and checkpoint-test cleanup
+name: One-time lint and strict-typing cleanup
 
 on:
   push:
@@ -44,21 +44,126 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
-          path = Path("tests/test_model_training.py")
-          text = path.read_text(encoding="utf-8")
-          old_import = "import torch\n"
-          new_import = "import torch\nfrom safetensors import SafetensorError\n"
-          if "from safetensors import SafetensorError" not in text:
-              if old_import not in text:
-                  raise RuntimeError("expected torch import was not found")
-              text = text.replace(old_import, new_import, 1)
-          old_assertion = "with pytest.raises(Exception):\n        load_checkpoint(path)"
-          new_assertion = "with pytest.raises(SafetensorError):\n        load_checkpoint(path)"
-          if old_assertion in text:
-              text = text.replace(old_assertion, new_assertion, 1)
-          elif new_assertion not in text:
-              raise RuntimeError("expected checkpoint corruption assertion was not found")
-          path.write_text(text, encoding="utf-8")
+          def replace(path: str, old: str, new: str, *, count: int = 1) -> None:
+              target = Path(path)
+              text = target.read_text(encoding="utf-8")
+              if new in text and old not in text:
+                  return
+              if old not in text:
+                  raise RuntimeError(f"expected text not found in {path}: {old[:100]!r}")
+              target.write_text(text.replace(old, new, count), encoding="utf-8")
+
+          replace(
+              "tests/test_model_training.py",
+              "import torch\n",
+              "import torch\nfrom safetensors import SafetensorError\n",
+          )
+          replace(
+              "tests/test_model_training.py",
+              "with pytest.raises(Exception):\n        load_checkpoint(path)",
+              "with pytest.raises(SafetensorError):\n        load_checkpoint(path)",
+          )
+          replace(
+              "src/warmcg/solver.py",
+              "from scipy.optimize import Bounds, LinearConstraint, milp\n"
+              "from scipy.sparse import coo_matrix\n",
+              "from scipy.optimize import Bounds, LinearConstraint, milp  # type: ignore[import-untyped]\n"
+              "from scipy.sparse import coo_matrix  # type: ignore[import-untyped]\n",
+          )
+          replace(
+              "src/warmcg/warmstart.py",
+              "            compactness_heuristic_scores(batch.values),",
+              "            compactness_heuristic_scores(batch.values).tolist(),",
+          )
+          replace(
+              "src/warmcg/warmstart.py",
+              "        chosen = rank_top_k(candidates, scores, budget)",
+              "        chosen = rank_top_k(candidates, scores.tolist(), budget)",
+          )
+          replace(
+              "src/warmcg/training.py",
+              "    mean = np.mean(training_samples.features, axis=0, dtype=np.float64)\n"
+              "    scale = np.std(training_samples.features, axis=0, dtype=np.float64)\n"
+              "    scale = np.where(scale < 1e-6, 1.0, scale)\n"
+              "    model = ConstraintScorer(architecture).to(device)\n"
+              "    model.set_normalization(mean.astype(np.float32), scale.astype(np.float32))\n",
+              "    mean = np.asarray(\n"
+              "        np.mean(training_samples.features, axis=0, dtype=np.float64),\n"
+              "        dtype=np.float32,\n"
+              "    )\n"
+              "    scale = np.asarray(\n"
+              "        np.std(training_samples.features, axis=0, dtype=np.float64),\n"
+              "        dtype=np.float32,\n"
+              "    )\n"
+              "    scale = np.asarray(np.where(scale < 1e-6, 1.0, scale), dtype=np.float32)\n"
+              "    model = ConstraintScorer(architecture).to(device)\n"
+              "    model.set_normalization(mean, scale)\n",
+          )
+          replace(
+              "src/warmcg/evaluation.py",
+              "from statistics import median\n",
+              "from statistics import median\nfrom typing import Literal\n",
+          )
+          replace(
+              "src/warmcg/evaluation.py",
+              "from warmcg.warmstart import WarmStartSelection\n",
+              "from warmcg.warmstart import SetOverlap, WarmStartSelection\n",
+          )
+          replace(
+              "src/warmcg/evaluation.py",
+              "def _overlap_value(selection: WarmStartSelection, name: str, field: str) -> float | None:\n"
+              "    overlap = getattr(selection, f\"{name}_overlap\")\n"
+              "    if overlap is None:\n"
+              "        return None\n"
+              "    return getattr(overlap, field)\n",
+              "def _overlap_value(\n"
+              "    overlap: SetOverlap | None,\n"
+              "    field: Literal[\"precision\", \"recall\"],\n"
+              ") -> float | None:\n"
+              "    if overlap is None:\n"
+              "        return None\n"
+              "    return overlap.precision if field == \"precision\" else overlap.recall\n",
+          )
+          replacements = {
+              '_overlap_value(selection, "invariant", "precision")':
+                  '_overlap_value(selection.invariant_overlap, "precision")',
+              '_overlap_value(selection, "invariant", "recall")':
+                  '_overlap_value(selection.invariant_overlap, "recall")',
+              '_overlap_value(selection, "trajectory", "precision")':
+                  '_overlap_value(selection.trajectory_overlap, "precision")',
+              '_overlap_value(selection, "trajectory", "recall")':
+                  '_overlap_value(selection.trajectory_overlap, "recall")',
+              '_overlap_value(selection, "binding", "precision")':
+                  '_overlap_value(selection.binding_overlap, "precision")',
+              '_overlap_value(selection, "binding", "recall")':
+                  '_overlap_value(selection.binding_overlap, "recall")',
+          }
+          evaluation = Path("src/warmcg/evaluation.py")
+          text = evaluation.read_text(encoding="utf-8")
+          for old, new in replacements.items():
+              if old in text:
+                  text = text.replace(old, new)
+              elif new not in text:
+                  raise RuntimeError(f"expected overlap call not found: {old}")
+          evaluation.write_text(text, encoding="utf-8")
+          replace(
+              "src/warmcg/cli.py",
+              "    payload = {\n"
+              "        \"instance\": instance.to_dict(),\n"
+              "        \"cold_constraint_generation\": cold.to_dict(),",
+              "    payload: dict[str, object] = {\n"
+              "        \"instance\": instance.to_dict(),\n"
+              "        \"cold_constraint_generation\": cold.to_dict(),",
+          )
+          replace(
+              "src/warmcg/cli.py",
+              "    payload = {\n"
+              "        \"instance\": instance.to_dict(),\n"
+              "        \"checkpoint_target\": target,",
+              "    payload: dict[str, object] = {\n"
+              "        \"instance\": instance.to_dict(),\n"
+              "        \"checkpoint_target\": target,",
+          )
           PY
           ruff check --fix .
           ruff format .
@@ -82,5 +187,5 @@ jobs:
             echo "No source cleanup changes to commit."
             exit 0
           }
-          git commit -m "Fix lint and checkpoint corruption assertion"
+          git commit -m "Fix lint and strict typing boundaries"
           git push origin HEAD:invariant-sec-warm-start
