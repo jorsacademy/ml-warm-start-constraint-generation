@@ -1,0 +1,86 @@
+name: One-time lint and checkpoint-test cleanup
+
+on:
+  push:
+    branches: [invariant-sec-warm-start]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: lintfix-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cleanup:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: invariant-sec-warm-start
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install package and development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.2,<3"
+          python -m pip install -e ".[dev]"
+          python -m pip check
+
+      - name: Apply deterministic cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("tests/test_model_training.py")
+          text = path.read_text(encoding="utf-8")
+          old_import = "import torch\n"
+          new_import = "import torch\nfrom safetensors import SafetensorError\n"
+          if "from safetensors import SafetensorError" not in text:
+              if old_import not in text:
+                  raise RuntimeError("expected torch import was not found")
+              text = text.replace(old_import, new_import, 1)
+          old_assertion = "with pytest.raises(Exception):\n        load_checkpoint(path)"
+          new_assertion = "with pytest.raises(SafetensorError):\n        load_checkpoint(path)"
+          if old_assertion in text:
+              text = text.replace(old_assertion, new_assertion, 1)
+          elif new_assertion not in text:
+              raise RuntimeError("expected checkpoint corruption assertion was not found")
+          path.write_text(text, encoding="utf-8")
+          PY
+          ruff check --fix .
+          ruff format .
+
+      - name: Verify quality gates
+        run: |
+          ruff check .
+          ruff format --check .
+          mypy --python-version 3.11 src
+          pytest
+
+      - name: Commit regular source changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src tests
+          git diff --cached --check
+          git diff --cached --quiet && {
+            echo "No source cleanup changes to commit."
+            exit 0
+          }
+          git commit -m "Fix lint and checkpoint corruption assertion"
+          git push origin HEAD:invariant-sec-warm-start
