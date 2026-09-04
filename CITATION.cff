@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this research software, please cite the repository."
+title: "ML Warm-Start Constraint Generation"
+type: software
+authors:
+  - name: "Jors Academy"
+repository-code: "https://github.com/jorsacademy/ml-warm-start-constraint-generation"
+url: "https://github.com/jorsacademy/ml-warm-start-constraint-generation"
+version: 0.1.0
+date-released: 2026-09-04
+license: LicenseRef-PolyForm-Noncommercial-1.0.0
+keywords:
+  - constraint generation
+  - machine learning
+  - warm start
+  - traveling salesman problem
+  - subtour elimination

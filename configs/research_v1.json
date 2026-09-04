@@ -1,0 +1,89 @@
+{
+  "schema_version": "warmcg-research-v1",
+  "training_count": 60,
+  "training_node_counts": [8, 10, 12],
+  "training_regimes": ["uniform", "clustered", "strongly_clustered"],
+  "training_seed": 3200,
+  "validation_count": 18,
+  "validation_node_counts": [8, 10, 12],
+  "validation_regimes": ["uniform", "clustered", "strongly_clustered"],
+  "validation_seed": 4200,
+  "hidden_dim": 64,
+  "hidden_layers": 2,
+  "epochs": 40,
+  "batch_size": 512,
+  "learning_rate": 0.001,
+  "weight_decay": 0.00001,
+  "negative_ratio": 12,
+  "minimum_negatives_per_instance": 48,
+  "patience": 8,
+  "warm_start_budget": 8,
+  "bootstrap_draws": 1000,
+  "bootstrap_seed": 6200,
+  "model_seed": 5200,
+  "scenarios": [
+    {
+      "name": "interpolation",
+      "count": 12,
+      "node_count": 10,
+      "regime": "uniform",
+      "seed": 7200
+    },
+    {
+      "name": "size_14",
+      "count": 12,
+      "node_count": 14,
+      "regime": "uniform",
+      "seed": 8200
+    },
+    {
+      "name": "clustered",
+      "count": 12,
+      "node_count": 12,
+      "regime": "clustered",
+      "seed": 9200
+    },
+    {
+      "name": "strong_clustered",
+      "count": 12,
+      "node_count": 12,
+      "regime": "strongly_clustered",
+      "seed": 10200
+    },
+    {
+      "name": "ring",
+      "count": 12,
+      "node_count": 12,
+      "regime": "ring",
+      "seed": 11200
+    },
+    {
+      "name": "grid_jitter",
+      "count": 12,
+      "node_count": 12,
+      "regime": "grid_jitter",
+      "seed": 12200
+    },
+    {
+      "name": "anisotropic",
+      "count": 12,
+      "node_count": 12,
+      "regime": "anisotropic",
+      "seed": 13200
+    },
+    {
+      "name": "outlier",
+      "count": 12,
+      "node_count": 12,
+      "regime": "outlier",
+      "seed": 14200
+    },
+    {
+      "name": "two_cluster_bridge",
+      "count": 12,
+      "node_count": 14,
+      "regime": "two_cluster_bridge",
+      "seed": 15200
+    }
+  ]
+}
