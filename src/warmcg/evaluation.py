@@ -8,6 +8,7 @@ from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from statistics import median
+from typing import Literal
 
 import numpy as np
 
@@ -15,7 +16,12 @@ from warmcg.dataset import LabeledTSPRecord, WarmStartDataset
 from warmcg.model import ConstraintScorer
 from warmcg.solver import ConstraintGenerationResult, run_constraint_generation
 from warmcg.utils import write_json
-from warmcg.warmstart import WarmStartMethod, WarmStartSelection, select_warm_start
+from warmcg.warmstart import (
+    SetOverlap,
+    WarmStartMethod,
+    WarmStartSelection,
+    select_warm_start,
+)
 
 DEFAULT_METHODS: tuple[WarmStartMethod, ...] = (
     "cold",
@@ -166,11 +172,13 @@ def _root_gap_closure(
     return min(1.0, max(0.0, value))
 
 
-def _overlap_value(selection: WarmStartSelection, name: str, field: str) -> float | None:
-    overlap = getattr(selection, f"{name}_overlap")
+def _overlap_value(
+    overlap: SetOverlap | None,
+    field: Literal["precision", "recall"],
+) -> float | None:
     if overlap is None:
         return None
-    return getattr(overlap, field)
+    return overlap.precision if field == "precision" else overlap.recall
 
 
 def _instance_result(
@@ -214,12 +222,12 @@ def _instance_result(
         total_runtime_seconds=selection.selection_seconds + result.total_runtime_seconds,
         certified=result.certified,
         held_karp_verified=result.held_karp_verified,
-        invariant_precision=_overlap_value(selection, "invariant", "precision"),
-        invariant_recall=_overlap_value(selection, "invariant", "recall"),
-        trajectory_precision=_overlap_value(selection, "trajectory", "precision"),
-        trajectory_recall=_overlap_value(selection, "trajectory", "recall"),
-        binding_precision=_overlap_value(selection, "binding", "precision"),
-        binding_recall=_overlap_value(selection, "binding", "recall"),
+        invariant_precision=_overlap_value(selection.invariant_overlap, "precision"),
+        invariant_recall=_overlap_value(selection.invariant_overlap, "recall"),
+        trajectory_precision=_overlap_value(selection.trajectory_overlap, "precision"),
+        trajectory_recall=_overlap_value(selection.trajectory_overlap, "recall"),
+        binding_precision=_overlap_value(selection.binding_overlap, "precision"),
+        binding_recall=_overlap_value(selection.binding_overlap, "recall"),
     )
 
 
@@ -319,9 +327,7 @@ def evaluate_dataset(
                 method=method,
                 instance_count=len(rows),
                 requested_budget=budget,
-                mean_preloaded_cut_count=float(
-                    np.mean([row.preloaded_cut_count for row in rows])
-                ),
+                mean_preloaded_cut_count=float(np.mean([row.preloaded_cut_count for row in rows])),
                 mean_online_generated_cut_count=float(
                     np.mean([row.online_generated_cut_count for row in rows])
                 ),
@@ -334,9 +340,7 @@ def evaluate_dataset(
                 one_shot_rate=float(np.mean([row.one_shot for row in rows])),
                 mean_root_gap_closure=_mean_optional(row.root_gap_closure for row in rows),
                 mean_total_mip_nodes=float(np.mean([row.total_mip_nodes for row in rows])),
-                mean_selection_seconds=float(
-                    np.mean([row.selection_seconds for row in rows])
-                ),
+                mean_selection_seconds=float(np.mean([row.selection_seconds for row in rows])),
                 mean_solve_seconds=float(np.mean([row.solve_seconds for row in rows])),
                 mean_total_runtime_seconds=float(
                     np.mean([row.total_runtime_seconds for row in rows])
@@ -345,22 +349,16 @@ def evaluate_dataset(
                 held_karp_verification_rate=float(
                     np.mean([row.held_karp_verified for row in rows])
                 ),
-                mean_invariant_precision=_mean_optional(
-                    row.invariant_precision for row in rows
-                ),
+                mean_invariant_precision=_mean_optional(row.invariant_precision for row in rows),
                 mean_invariant_recall=_mean_optional(row.invariant_recall for row in rows),
-                mean_trajectory_precision=_mean_optional(
-                    row.trajectory_precision for row in rows
-                ),
+                mean_trajectory_precision=_mean_optional(row.trajectory_precision for row in rows),
                 mean_trajectory_recall=_mean_optional(row.trajectory_recall for row in rows),
                 mean_binding_precision=_mean_optional(row.binding_precision for row in rows),
                 mean_binding_recall=_mean_optional(row.binding_recall for row in rows),
                 mean_solve_reduction_vs_cold=float(np.mean(solve_reductions)),
                 solve_reduction_ci_low=solve_ci[0],
                 solve_reduction_ci_high=solve_ci[1],
-                mean_online_cut_reduction_vs_cold=float(
-                    np.mean(online_cut_reductions)
-                ),
+                mean_online_cut_reduction_vs_cold=float(np.mean(online_cut_reductions)),
                 online_cut_reduction_ci_low=cut_ci[0],
                 online_cut_reduction_ci_high=cut_ci[1],
                 mean_runtime_difference_vs_cold=float(np.mean(runtime_differences)),
@@ -383,9 +381,7 @@ def evaluate_dataset(
             "bootstrap_seed": bootstrap_seed,
             "bootstrap_draws": bootstrap_draws,
             "all_results_certified": all(row.certified for row in instance_rows),
-            "all_results_held_karp_verified": all(
-                row.held_karp_verified for row in instance_rows
-            ),
+            "all_results_held_karp_verified": all(row.held_karp_verified for row in instance_rows),
             "oracle_invariant_budget_note": (
                 "oracle_invariant_full preloads the full offline core and is not "
                 "cardinality matched"

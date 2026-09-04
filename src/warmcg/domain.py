@@ -255,9 +255,8 @@ def audit_tour(
     tolerance: float = 1e-8,
 ) -> TourAudit:
     order = solution.order
-    hamiltonian = (
-        len(order) == instance.node_count
-        and set(order) == set(range(instance.node_count))
+    hamiltonian = len(order) == instance.node_count and set(order) == set(
+        range(instance.node_count)
     )
     canonical = hamiltonian and canonical_tour(order) == order
     recomputed = tour_objective(instance, order) if hamiltonian else math.inf
@@ -323,9 +322,7 @@ def generate_instance(
         angles = np.linspace(0.0, 2.0 * math.pi, node_count, endpoint=False)
         angles += rng.normal(0.0, 0.035, size=node_count)
         radii = 0.36 + rng.normal(0.0, 0.018, size=node_count)
-        coordinates = np.column_stack(
-            (0.5 + radii * np.cos(angles), 0.5 + radii * np.sin(angles))
-        )
+        coordinates = np.column_stack((0.5 + radii * np.cos(angles), 0.5 + radii * np.sin(angles)))
     elif regime == "grid_jitter":
         width = int(math.ceil(math.sqrt(node_count)))
         grid = np.asarray(
@@ -401,9 +398,9 @@ def solve_held_karp(instance: TSPInstance, *, maximum_nodes: int = 18) -> TourSo
             while remaining:
                 bit = remaining & -remaining
                 predecessor = bit.bit_length() - 1
-                candidate = costs[previous_mask, predecessor] + distances[
-                    predecessor + 1, terminal + 1
-                ]
+                candidate = (
+                    costs[previous_mask, predecessor] + distances[predecessor + 1, terminal + 1]
+                )
                 if candidate < best_cost - tolerance or (
                     math.isclose(candidate, best_cost, rel_tol=0.0, abs_tol=tolerance)
                     and predecessor < best_parent
@@ -451,9 +448,13 @@ def solve_brute_force(instance: TSPInstance, *, maximum_nodes: int = 10) -> Tour
     best: TourSolution | None = None
     for permutation in itertools.permutations(range(1, instance.node_count)):
         candidate = make_tour_solution(instance, (0,) + permutation)
-        if best is None or candidate.objective < best.objective - 1e-12 or (
-            math.isclose(candidate.objective, best.objective, rel_tol=0.0, abs_tol=1e-12)
-            and candidate.order < best.order
+        if (
+            best is None
+            or candidate.objective < best.objective - 1e-12
+            or (
+                math.isclose(candidate.objective, best.objective, rel_tol=0.0, abs_tol=1e-12)
+                and candidate.order < best.order
+            )
         ):
             best = candidate
     if best is None:

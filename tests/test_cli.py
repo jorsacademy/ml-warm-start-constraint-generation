@@ -17,63 +17,75 @@ def test_cli_end_to_end(tmp_path: Path, capsys: object) -> None:
     benchmark_json = tmp_path / "benchmark.json"
     benchmark_csv = tmp_path / "benchmark.csv"
 
-    assert main(
-        [
-            "generate",
-            "--node-count",
-            "7",
-            "--regime",
-            "strongly_clustered",
-            "--seed",
-            "3",
-            "--output",
-            str(instance),
-        ]
-    ) == 0
-    assert main(
-        [
-            "oracle",
-            str(instance),
-            "--maximum-nodes",
-            "10",
-            "--output",
-            str(oracle),
-        ]
-    ) == 0
-    assert main(
-        [
-            "collect",
-            "--count",
-            "5",
-            "--node-counts",
-            "7",
-            "8",
-            "--regimes",
-            "clustered",
-            "strongly_clustered",
-            "--seed",
-            "500",
-            "--output",
-            str(training),
-        ]
-    ) == 0
-    assert main(
-        [
-            "collect",
-            "--count",
-            "3",
-            "--node-counts",
-            "7",
-            "8",
-            "--regimes",
-            "clustered",
-            "strongly_clustered",
-            "--seed",
-            "600",
-            "--output",
-            str(validation),
-        ]
-    ) == 0
+    assert (
+        main(
+            [
+                "generate",
+                "--node-count",
+                "7",
+                "--regime",
+                "strongly_clustered",
+                "--seed",
+                "3",
+                "--output",
+                str(instance),
+            ]
+        )
+        == 0
+    )
+    assert (
+        main(
+            [
+                "oracle",
+                str(instance),
+                "--maximum-nodes",
+                "10",
+                "--output",
+                str(oracle),
+            ]
+        )
+        == 0
+    )
+    assert (
+        main(
+            [
+                "collect",
+                "--count",
+                "5",
+                "--node-counts",
+                "7",
+                "8",
+                "--regimes",
+                "clustered",
+                "strongly_clustered",
+                "--seed",
+                "500",
+                "--output",
+                str(training),
+            ]
+        )
+        == 0
+    )
+    assert (
+        main(
+            [
+                "collect",
+                "--count",
+                "3",
+                "--node-counts",
+                "7",
+                "8",
+                "--regimes",
+                "clustered",
+                "strongly_clustered",
+                "--seed",
+                "600",
+                "--output",
+                str(validation),
+            ]
+        )
+        == 0
+    )
     common = [
         "--validation",
         str(validation),
@@ -94,64 +106,74 @@ def test_cli_end_to_end(tmp_path: Path, capsys: object) -> None:
         "--patience",
         "1",
     ]
-    assert main(
-        [
-            "train",
-            str(training),
-            *common,
-            "--target",
-            "invariant",
-            "--checkpoint",
-            str(invariant_checkpoint),
-        ]
-    ) == 0
-    assert main(
-        [
-            "train",
-            str(training),
-            *common,
-            "--target",
-            "binding",
-            "--checkpoint",
-            str(binding_checkpoint),
-        ]
-    ) == 0
-    assert main(
-        [
-            "solve",
-            str(instance),
-            "--mode",
-            "learned",
-            "--checkpoint",
-            str(invariant_checkpoint),
-            "--budget",
-            "3",
-            "--output",
-            str(solve_output),
-        ]
-    ) == 0
-    assert main(
-        [
-            "benchmark",
-            str(validation),
-            "--invariant-checkpoint",
-            str(invariant_checkpoint),
-            "--binding-checkpoint",
-            str(binding_checkpoint),
-            "--budget",
-            "3",
-            "--bootstrap-draws",
-            "5",
-            "--output-json",
-            str(benchmark_json),
-            "--output-csv",
-            str(benchmark_csv),
-        ]
-    ) == 0
+    assert (
+        main(
+            [
+                "train",
+                str(training),
+                *common,
+                "--target",
+                "invariant",
+                "--checkpoint",
+                str(invariant_checkpoint),
+            ]
+        )
+        == 0
+    )
+    assert (
+        main(
+            [
+                "train",
+                str(training),
+                *common,
+                "--target",
+                "binding",
+                "--checkpoint",
+                str(binding_checkpoint),
+            ]
+        )
+        == 0
+    )
+    assert (
+        main(
+            [
+                "solve",
+                str(instance),
+                "--mode",
+                "learned",
+                "--checkpoint",
+                str(invariant_checkpoint),
+                "--budget",
+                "3",
+                "--output",
+                str(solve_output),
+            ]
+        )
+        == 0
+    )
+    assert (
+        main(
+            [
+                "benchmark",
+                str(validation),
+                "--invariant-checkpoint",
+                str(invariant_checkpoint),
+                "--binding-checkpoint",
+                str(binding_checkpoint),
+                "--budget",
+                "3",
+                "--bootstrap-draws",
+                "5",
+                "--output-json",
+                str(benchmark_json),
+                "--output-csv",
+                str(benchmark_csv),
+            ]
+        )
+        == 0
+    )
 
-    assert json.loads(oracle.read_text(encoding="utf-8"))["cold_constraint_generation"][
-        "certified"
-    ]
+    assert json.loads(oracle.read_text(encoding="utf-8"))["cold_constraint_generation"]["certified"]
     assert json.loads(solve_output.read_text(encoding="utf-8"))["result"]["certified"]
     benchmark = json.loads(benchmark_json.read_text(encoding="utf-8"))
     assert benchmark["metadata"]["all_results_certified"]

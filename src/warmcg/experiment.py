@@ -106,39 +106,25 @@ class ResearchConfig:
                 )
             )
         return cls(
-            training_count=integer(
-                payload.get("training_count"), name="training_count", minimum=1
-            ),
-            training_node_counts=tuple(
-                _integer_list(payload, "training_node_counts")
-            ),
+            training_count=integer(payload.get("training_count"), name="training_count", minimum=1),
+            training_node_counts=tuple(_integer_list(payload, "training_node_counts")),
             training_regimes=tuple(_string_list(payload, "training_regimes")),
-            training_seed=integer(
-                payload.get("training_seed"), name="training_seed", minimum=0
-            ),
+            training_seed=integer(payload.get("training_seed"), name="training_seed", minimum=0),
             validation_count=integer(
                 payload.get("validation_count"), name="validation_count", minimum=1
             ),
-            validation_node_counts=tuple(
-                _integer_list(payload, "validation_node_counts")
-            ),
+            validation_node_counts=tuple(_integer_list(payload, "validation_node_counts")),
             validation_regimes=tuple(_string_list(payload, "validation_regimes")),
             validation_seed=integer(
                 payload.get("validation_seed"), name="validation_seed", minimum=0
             ),
             hidden_dim=integer(payload.get("hidden_dim"), name="hidden_dim", minimum=1),
-            hidden_layers=integer(
-                payload.get("hidden_layers"), name="hidden_layers", minimum=1
-            ),
+            hidden_layers=integer(payload.get("hidden_layers"), name="hidden_layers", minimum=1),
             epochs=integer(payload.get("epochs"), name="epochs", minimum=1),
             batch_size=integer(payload.get("batch_size"), name="batch_size", minimum=1),
-            learning_rate=finite_float(
-                payload.get("learning_rate"), name="learning_rate"
-            ),
+            learning_rate=finite_float(payload.get("learning_rate"), name="learning_rate"),
             weight_decay=finite_float(payload.get("weight_decay"), name="weight_decay"),
-            negative_ratio=integer(
-                payload.get("negative_ratio"), name="negative_ratio", minimum=1
-            ),
+            negative_ratio=integer(payload.get("negative_ratio"), name="negative_ratio", minimum=1),
             minimum_negatives_per_instance=integer(
                 payload.get("minimum_negatives_per_instance"),
                 name="minimum_negatives_per_instance",
@@ -151,9 +137,7 @@ class ResearchConfig:
             bootstrap_draws=integer(
                 payload.get("bootstrap_draws"), name="bootstrap_draws", minimum=1
             ),
-            bootstrap_seed=integer(
-                payload.get("bootstrap_seed"), name="bootstrap_seed", minimum=0
-            ),
+            bootstrap_seed=integer(payload.get("bootstrap_seed"), name="bootstrap_seed", minimum=0),
             model_seed=integer(payload.get("model_seed"), name="model_seed", minimum=0),
             scenarios=tuple(scenarios),
         )

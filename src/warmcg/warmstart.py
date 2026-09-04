@@ -157,7 +157,7 @@ def select_warm_start(
         batch = candidate_features(instance, candidates)
         chosen = rank_top_k(
             candidates,
-            compactness_heuristic_scores(batch.values),
+            compactness_heuristic_scores(batch.values).tolist(),
             budget,
         )
     elif method in {"invariant_model", "binding_model"}:
@@ -165,14 +165,12 @@ def select_warm_start(
             raise RuntimeError("learned warm-start selection lost its model")
         batch = candidate_features(instance, candidates)
         scores = score_feature_matrix(model, batch.values)
-        chosen = rank_top_k(candidates, scores, budget)
+        chosen = rank_top_k(candidates, scores.tolist(), budget)
     elif method == "oracle_invariant_matched":
         if record is None:
             raise RuntimeError("matched invariant oracle lost its record")
         invariant_nodes = {cut.nodes for cut in record.invariant_cuts}
-        ordered = tuple(
-            cut for cut in record.trajectory_cuts if cut.nodes in invariant_nodes
-        )
+        ordered = tuple(cut for cut in record.trajectory_cuts if cut.nodes in invariant_nodes)
         chosen = ordered[: min(budget, len(ordered))]
     elif method == "oracle_invariant_full":
         if record is None:

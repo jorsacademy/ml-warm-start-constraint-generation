@@ -106,9 +106,7 @@ def _base_research_kwargs() -> dict[str, object]:
         "bootstrap_draws": 2,
         "bootstrap_seed": 3,
         "model_seed": 4,
-        "scenarios": (
-            ScenarioConfig(name="s", count=1, node_count=7, regime="clustered", seed=5),
-        ),
+        "scenarios": (ScenarioConfig(name="s", count=1, node_count=7, regime="clustered", seed=5),),
     }
 
 

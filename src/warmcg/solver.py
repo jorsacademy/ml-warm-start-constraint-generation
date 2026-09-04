@@ -8,13 +8,13 @@ from collections.abc import Iterable, Sequence
 from dataclasses import asdict, dataclass
 
 import numpy as np
-from scipy.optimize import Bounds, LinearConstraint, milp
-from scipy.sparse import coo_matrix
+from scipy.optimize import Bounds, LinearConstraint, milp  # type: ignore[import-untyped]
+from scipy.sparse import coo_matrix  # type: ignore[import-untyped]
 
 from warmcg.domain import (
     CutConstraint,
-    TSPInstance,
     TourSolution,
+    TSPInstance,
     canonical_cut,
     make_tour_solution,
     solve_held_karp,
@@ -32,9 +32,7 @@ class EdgeIndex:
     @classmethod
     def build(cls, node_count: int) -> EdgeIndex:
         edges = tuple(
-            (left, right)
-            for left in range(node_count)
-            for right in range(left + 1, node_count)
+            (left, right) for left in range(node_count) for right in range(left + 1, node_count)
         )
         return cls(
             node_count=node_count,

@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 import torch
+from safetensors import SafetensorError
 
 from warmcg.dataset import WarmStartDataset
 from warmcg.domain import enumerate_candidate_cuts
@@ -87,7 +88,7 @@ def test_checkpoint_rejects_wrong_tensor_schema(tmp_path: Path) -> None:
     save_checkpoint(model, path, target="binding")
     data = path.read_bytes()
     path.write_bytes(data[:-8])
-    with pytest.raises(Exception):
+    with pytest.raises(SafetensorError):
         load_checkpoint(path)
 
 

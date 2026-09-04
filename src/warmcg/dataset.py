@@ -11,8 +11,8 @@ import numpy as np
 
 from warmcg.domain import (
     CutConstraint,
-    TSPInstance,
     TourSolution,
+    TSPInstance,
     cut_value_on_tour,
     enumerate_candidate_cuts,
     generate_instance,
@@ -116,9 +116,7 @@ class LabeledTSPRecord:
             return tuple(result)
 
         base_objective_raw = payload.get("cold_base_objective")
-        if isinstance(base_objective_raw, bool) or not isinstance(
-            base_objective_raw, (int, float)
-        ):
+        if isinstance(base_objective_raw, bool) or not isinstance(base_objective_raw, (int, float)):
             raise ValueError("record cold_base_objective must be numeric")
         return cls(
             instance=instance,
@@ -237,9 +235,7 @@ def label_record(
         optimum_objective=oracle.objective,
     )
     candidates = enumerate_candidate_cuts(instance.node_count)
-    binding = tuple(
-        cut for cut in candidates if cut_value_on_tour(cut, cold.solution) == 2
-    )
+    binding = tuple(cut for cut in candidates if cut_value_on_tour(cut, cold.solution) == 2)
     initial = cold.iterations[0].generated_cuts if cold.iterations else ()
     return LabeledTSPRecord(
         instance=instance,
@@ -282,9 +278,7 @@ def generate_dataset(
             seed=instance_seed,
             instance_id=f"record-{index:05d}-{regime}-n{node_count}-seed{instance_seed}",
         )
-        records.append(
-            label_record(instance, held_karp_maximum_nodes=held_karp_maximum_nodes)
-        )
+        records.append(label_record(instance, held_karp_maximum_nodes=held_karp_maximum_nodes))
     metadata: dict[str, object] = {
         "generation_seed": seed,
         "requested_node_counts": list(node_counts),

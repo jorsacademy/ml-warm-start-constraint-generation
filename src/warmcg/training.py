@@ -186,9 +186,7 @@ def prepare_samples(
             if random_count > 0
             else np.empty(0, dtype=np.int64)
         )
-        selected = np.unique(
-            np.concatenate((positive_indices, selected_hard, selected_random))
-        )
+        selected = np.unique(np.concatenate((positive_indices, selected_hard, selected_random)))
         if selected.size == 0:
             raise RuntimeError("negative sampling selected no candidate rows")
         feature_rows.append(batch.values[selected])
@@ -261,12 +259,8 @@ def evaluate_ranking(
         top_k_precision=float(np.mean(np.asarray(top_precisions, dtype=float))),
         top_k_recall=float(np.mean(np.asarray(top_recalls, dtype=float))),
         any_positive_hit_rate=float(np.mean(np.asarray(hit_rates, dtype=float))),
-        mean_positive_score=(
-            float(np.mean(positive_scores)) if positive_scores.size else None
-        ),
-        mean_negative_score=(
-            float(np.mean(negative_scores)) if negative_scores.size else None
-        ),
+        mean_positive_score=(float(np.mean(positive_scores)) if positive_scores.size else None),
+        mean_negative_score=(float(np.mean(negative_scores)) if negative_scores.size else None),
     )
 
 
@@ -326,20 +320,24 @@ def train_constraint_scorer(
     if training_samples.positive_count == 0:
         raise ValueError(f"training corpus contains no positive {target!r} labels")
 
-    mean = np.mean(training_samples.features, axis=0, dtype=np.float64)
-    scale = np.std(training_samples.features, axis=0, dtype=np.float64)
-    scale = np.where(scale < 1e-6, 1.0, scale)
+    mean = np.asarray(
+        np.mean(training_samples.features, axis=0, dtype=np.float64),
+        dtype=np.float32,
+    )
+    scale = np.asarray(
+        np.std(training_samples.features, axis=0, dtype=np.float64),
+        dtype=np.float32,
+    )
+    scale = np.asarray(np.where(scale < 1e-6, 1.0, scale), dtype=np.float32)
     model = ConstraintScorer(architecture).to(device)
-    model.set_normalization(mean.astype(np.float32), scale.astype(np.float32))
+    model.set_normalization(mean, scale)
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=config.learning_rate,
         weight_decay=config.weight_decay,
     )
     ratio = training_samples.negative_count / max(1, training_samples.positive_count)
-    pos_weight = torch.tensor(
-        min(30.0, max(1.0, ratio)), dtype=torch.float32, device=model.device
-    )
+    pos_weight = torch.tensor(min(30.0, max(1.0, ratio)), dtype=torch.float32, device=model.device)
     criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
     generator = np.random.default_rng(config.seed + 2)
     history: list[EpochRecord] = []

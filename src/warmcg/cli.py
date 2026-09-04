@@ -73,7 +73,7 @@ def _command_oracle(args: argparse.Namespace) -> dict[str, object]:
         if instance.node_count <= args.brute_force_maximum_nodes
         else None
     )
-    payload = {
+    payload: dict[str, object] = {
         "instance": instance.to_dict(),
         "cold_constraint_generation": cold.to_dict(),
         "held_karp": held_karp.to_dict(),
@@ -164,7 +164,7 @@ def _command_solve(args: argparse.Namespace) -> dict[str, object]:
         verify_with_held_karp=instance.node_count <= args.maximum_nodes,
         held_karp_maximum_nodes=args.maximum_nodes,
     )
-    payload = {
+    payload: dict[str, object] = {
         "instance": instance.to_dict(),
         "checkpoint_target": target,
         "warm_start": selection.to_dict(),

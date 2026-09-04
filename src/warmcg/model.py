@@ -142,9 +142,7 @@ def save_checkpoint(
 
     output = Path(path)
     output.parent.mkdir(parents=True, exist_ok=True)
-    tensors = {
-        key: value.detach().cpu().contiguous() for key, value in model.state_dict().items()
-    }
+    tensors = {key: value.detach().cpu().contiguous() for key, value in model.state_dict().items()}
     save_file(
         tensors,
         str(output),
