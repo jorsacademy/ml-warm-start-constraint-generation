@@ -1,0 +1,204 @@
+name: One-time final source cleanup
+
+on:
+  push:
+    branches: [invariant-sec-warm-start]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: finalfix-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cleanup:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: invariant-sec-warm-start
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install package and development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.2,<3"
+          python -m pip install -e ".[dev]"
+          python -m pip check
+
+      - name: Apply strict source fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          def change(path: str, old: str, new: str) -> None:
+              target = Path(path)
+              text = target.read_text(encoding="utf-8")
+              if old in text:
+                  text = text.replace(old, new, 1)
+              elif new not in text:
+                  raise RuntimeError(f"expected source pattern missing in {path}: {old[:80]!r}")
+              target.write_text(text, encoding="utf-8")
+
+          change(
+              "tests/test_model_training.py",
+              "import torch\n",
+              "import torch\nfrom safetensors import SafetensorError\n",
+          )
+          change(
+              "tests/test_model_training.py",
+              "with pytest.raises(Exception):\n        load_checkpoint(path)",
+              "with pytest.raises(SafetensorError):\n        load_checkpoint(path)",
+          )
+          change(
+              "src/warmcg/solver.py",
+              "from scipy.optimize import Bounds, LinearConstraint, milp\n"
+              "from scipy.sparse import coo_matrix\n",
+              "from scipy.optimize import Bounds, LinearConstraint, milp  # type: ignore[import-untyped]\n"
+              "from scipy.sparse import coo_matrix  # type: ignore[import-untyped]\n",
+          )
+          change(
+              "src/warmcg/warmstart.py",
+              "            compactness_heuristic_scores(batch.values),",
+              "            compactness_heuristic_scores(batch.values).tolist(),",
+          )
+          change(
+              "src/warmcg/warmstart.py",
+              "        chosen = rank_top_k(candidates, scores, budget)",
+              "        chosen = rank_top_k(candidates, scores.tolist(), budget)",
+          )
+          change(
+              "src/warmcg/training.py",
+              "    mean = np.mean(training_samples.features, axis=0, dtype=np.float64)\n"
+              "    scale = np.std(training_samples.features, axis=0, dtype=np.float64)\n"
+              "    scale = np.where(scale < 1e-6, 1.0, scale)\n"
+              "    model = ConstraintScorer(architecture).to(device)\n"
+              "    model.set_normalization(mean.astype(np.float32), scale.astype(np.float32))\n",
+              "    mean = np.asarray(\n"
+              "        np.mean(training_samples.features, axis=0, dtype=np.float64),\n"
+              "        dtype=np.float32,\n"
+              "    )\n"
+              "    scale = np.asarray(\n"
+              "        np.std(training_samples.features, axis=0, dtype=np.float64),\n"
+              "        dtype=np.float32,\n"
+              "    )\n"
+              "    scale = np.asarray(np.where(scale < 1e-6, 1.0, scale), dtype=np.float32)\n"
+              "    model = ConstraintScorer(architecture).to(device)\n"
+              "    model.set_normalization(mean, scale)\n",
+          )
+
+          evaluation = Path("src/warmcg/evaluation.py")
+          text = evaluation.read_text(encoding="utf-8")
+          text = text.replace(
+              "from statistics import median\n",
+              "from statistics import median\nfrom typing import Literal\n",
+              1,
+          )
+          text = text.replace(
+              "from warmcg.warmstart import WarmStartMethod, WarmStartSelection, select_warm_start\n",
+              "from warmcg.warmstart import (\n"
+              "    SetOverlap,\n"
+              "    WarmStartMethod,\n"
+              "    WarmStartSelection,\n"
+              "    select_warm_start,\n"
+              ")\n",
+              1,
+          )
+          text = text.replace(
+              "def _overlap_value(selection: WarmStartSelection, name: str, field: str) -> float | None:\n"
+              "    overlap = getattr(selection, f\"{name}_overlap\")\n"
+              "    if overlap is None:\n"
+              "        return None\n"
+              "    return getattr(overlap, field)\n",
+              "def _overlap_value(\n"
+              "    overlap: SetOverlap | None,\n"
+              "    field: Literal[\"precision\", \"recall\"],\n"
+              ") -> float | None:\n"
+              "    if overlap is None:\n"
+              "        return None\n"
+              "    return overlap.precision if field == \"precision\" else overlap.recall\n",
+              1,
+          )
+          for old, new in {
+              '_overlap_value(selection, "invariant", "precision")':
+                  '_overlap_value(selection.invariant_overlap, "precision")',
+              '_overlap_value(selection, "invariant", "recall")':
+                  '_overlap_value(selection.invariant_overlap, "recall")',
+              '_overlap_value(selection, "trajectory", "precision")':
+                  '_overlap_value(selection.trajectory_overlap, "precision")',
+              '_overlap_value(selection, "trajectory", "recall")':
+                  '_overlap_value(selection.trajectory_overlap, "recall")',
+              '_overlap_value(selection, "binding", "precision")':
+                  '_overlap_value(selection.binding_overlap, "precision")',
+              '_overlap_value(selection, "binding", "recall")':
+                  '_overlap_value(selection.binding_overlap, "recall")',
+          }.items():
+              text = text.replace(old, new)
+          required = (
+              "from typing import Literal",
+              "SetOverlap,",
+              "overlap: SetOverlap | None",
+              "selection.invariant_overlap",
+              "selection.trajectory_overlap",
+              "selection.binding_overlap",
+          )
+          if not all(fragment in text for fragment in required):
+              raise RuntimeError("evaluation typing rewrite did not reach the expected state")
+          evaluation.write_text(text, encoding="utf-8")
+
+          change(
+              "src/warmcg/cli.py",
+              "    payload = {\n"
+              "        \"instance\": instance.to_dict(),\n"
+              "        \"cold_constraint_generation\": cold.to_dict(),",
+              "    payload: dict[str, object] = {\n"
+              "        \"instance\": instance.to_dict(),\n"
+              "        \"cold_constraint_generation\": cold.to_dict(),",
+          )
+          change(
+              "src/warmcg/cli.py",
+              "    payload = {\n"
+              "        \"instance\": instance.to_dict(),\n"
+              "        \"checkpoint_target\": target,",
+              "    payload: dict[str, object] = {\n"
+              "        \"instance\": instance.to_dict(),\n"
+              "        \"checkpoint_target\": target,",
+          )
+          PY
+          ruff check --fix .
+          ruff format .
+
+      - name: Verify all quality gates
+        run: |
+          ruff check .
+          ruff format --check .
+          mypy --python-version 3.11 src
+          pytest
+
+      - name: Commit regular source changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src tests
+          git diff --cached --check
+          git diff --cached --quiet && {
+            echo "No source fixes to commit."
+            exit 0
+          }
+          git commit -m "Fix lint and strict typing boundaries"
+          git push origin HEAD:invariant-sec-warm-start
